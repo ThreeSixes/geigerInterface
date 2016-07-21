@@ -32,7 +32,7 @@ f_trend_unk    = 0x06     # Not sure.
 f_mode = 0x18             # Bit position of the mode flag.
 f_mode_fast = 0x00        # Fast averaging mode.
 f_mode_slow = 0x08        # Slow averaging mode.
-f_mode_stream = 0x18      # Streaming mode.
+f_mode_stream = 0x10      # Streaming mode.
 
 
 #################
