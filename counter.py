@@ -13,9 +13,6 @@ import datetime
 ### Master counter class ###
 ############################
 
-
-
-
 class geigerInterface():
     def __init__(self, mode, hwPlatform, cps = False, flags = False, debug = False, quiet = False, time = 0):
         """
@@ -361,7 +358,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Geiger counter interface", epilog = "Fast mode averages counts over a 4 second period, and slow mode averages counts over a 22 second period. This is modeled from the Ludlum model 3 geiger counter. It is intended that this program get support for storing data to files.")
     parser.add_argument('--accumulate', action='store_true', help = 'Keep a sum of all detected counts.')
     parser.add_argument('--cps', action='store_true', help = 'Show live counts per second.')
-    parser.add_argument('--hw', choices=['dummy', 'u3'], required = True, help = 'Set counter hardware platform. The choices are "dummy" which does nothing and "u3" for a LabJack U3.')
+    parser.add_argument('--hw', choices=['dummy', 'random', 'u3'], required = True, help = 'Set counter hardware platform. The choices are "dummy" which does nothing, "random" which generates random numbers, and "u3" for a LabJack U3.')
     parser.add_argument('--debug', action='store_true', help = 'Debug')
     parser.add_argument('--flags', action='store_true', help = 'Display flags.')
     parser.add_argument('--mode', choices=['fast', 'slow', 'stream', 'roll'], required = True, help = 'Set mode option. Fast averages samples over 4 sec., Slow averages samples over 22 sec. Stream mode implies --cps and does not average. Roll mode keeps adding an average as long as it runs, and dumps stats at the end. Roll mode also implies --quiet.')
@@ -381,6 +378,11 @@ if __name__ == "__main__":
         # We have a dummy class that will just read zeroes.
         import hwInterface
         hwPlat = hwInterface.counterIface()
+    
+    elif args.hw == "random":
+        # Use the random number generator.
+        import rndHardware
+        hwPlat = rndHardware.rndHardware()
     
     ctr = geigerInterface(args.mode, hwPlat, cps = args.cps, flags = args.flags, debug = args.debug, quiet = args.quiet, time = args.time)
     
