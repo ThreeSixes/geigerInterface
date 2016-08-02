@@ -4,10 +4,9 @@
 ### Imports ###
 ###############
 
+import datetime
 import time
 import traceback
-import datetime
-
 
 ############################
 ### Master counter class ###
@@ -57,9 +56,12 @@ class geigerInterface():
         self.liveOutput = True # Do we dump data in real time?
         self.scount = 0
         self.runtime = 0 # How long have we been running?
-        self.accumCts = 0 # How many counts do we have?
+        self.accumCts = 0 # How many counts do we have?        
         self.timed = False # Are we running in timed mode?
         self.timeLimit = 0 # What is our time limit
+        
+        # Printed timestamp format.
+        self.__tsFormat = '%Y-%m-%d %H:%M:%S.%f UTC'
         
         # Select sample count based on mode.
         if mode == "fast":
@@ -209,6 +211,12 @@ class geigerInterface():
         
         return retVal
     
+    def cli(self):
+        """
+        Use CLI mode.
+        """
+        
+        return
     
     def run(self):
         """
@@ -229,6 +237,15 @@ class geigerInterface():
             
             if self.debugOn == True:
                 print("Hardware config information:\n%s" %devConfig['config'])
+            
+            # When are we starting?
+            self.__dtsStart = datetime.datetime.utcnow()
+            
+            # In case we bomb out make sure we have some sort of end DTS.
+            self.__dtsEnd = datetime.datetime.utcnow()
+            
+            # Print start time
+            print("Start time: %s" %self.__dtsStart.strftime(self.__tsFormat))
             
             # Start hardware interface...
             self.__hw.start()
@@ -306,9 +323,12 @@ class geigerInterface():
                     # Pass the exception up the stack.
                     raise
             
+            # When are we starting?
+            self.__dtsEnd = datetime.datetime.utcnow()
+            
             # Stop the harware counter.
             self.__hw.stop()
-            
+        
         except KeyboardInterrupt:
             print("Caught keyboard interrupt. Quitting.")
         
@@ -318,6 +338,9 @@ class geigerInterface():
             print("Unhandled exception:\n%s" %tb)
         
         finally:
+            # Print start time
+            print("End time: %s" %self.__dtsEnd.strftime(self.__tsFormat))
+            
             # If we're in rolling mode make sure we give final stats after the program is killed.
             if (self.flags & self.f_mode) == self.f_mode_roll:
                 # Make sure we don't divide by zero.
