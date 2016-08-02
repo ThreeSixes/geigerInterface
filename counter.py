@@ -6,6 +6,7 @@
 
 import time
 import traceback
+import datetime
 
 
 ############################
@@ -16,7 +17,7 @@ import traceback
 
 
 class geigerInterface():
-    def __init__(self, mode, hwPlatform, cps = False, flags = False, debug = False, quiet = False, timeStr = ""):
+    def __init__(self, mode, hwPlatform, cps = False, flags = False, debug = False, quiet = False, time = 0):
         """
         Geiger counter interface class. Madatory arguments are mode and hwPlatform, which should be an instance or child object of counterIface.
         """
@@ -60,6 +61,8 @@ class geigerInterface():
         self.scount = 0
         self.runtime = 0 # How long have we been running?
         self.accumCts = 0 # How many counts do we have?
+        self.timed = False # Are we running in timed mode?
+        self.timeLimit = 0 # What is our time limit
         
         # Select sample count based on mode.
         if mode == "fast":
@@ -107,6 +110,11 @@ class geigerInterface():
         # Live output?
         if quiet == True:
             self.liveOutput = False
+        
+        # Timer?
+        if time > 0:
+            self.timed = True
+            self.timeLimit = time
 
 
     def setFlag(self, whichFlag, whichValue):
@@ -236,11 +244,17 @@ class geigerInterface():
                     # Snag counter results.
                     thisReading = self.__hw.poll()
                     
+                    # Get mode flags.
+                    modeFlg = self.flags & self.f_mode
+                    
                     # If we're in rolling mode increment the runtime.
-                    if (self.flags & self.f_mode) == self.f_mode_roll:
+                    if  modeFlg == self.f_mode_roll:
                         # Roll accumulator.
                         self.accumCts += thisReading
-                        # Roll accumulator.
+                    
+                    # If we're in rolling or timer mode...
+                    if (modeFlg == self.f_mode_roll) or (self.timed == True):
+                        # Increment timer.
                         self.runtime += 1
                     
                     # Are we averaging?
@@ -281,6 +295,12 @@ class geigerInterface():
                         
                         if self.averageOn == True:
                             print("%s CPM" %round(cpm, 3))
+                
+                    # If we're in timed mode make sure we haven't exceeded our runtime.
+                    if self.timed == True:
+                        # If we've hit our time limit this cycle stop the loop.
+                        if self.runtime == self.timeLimit:
+                            keepRunning = False
                 
                 except:
                     # Stop the loop.
@@ -362,6 +382,6 @@ if __name__ == "__main__":
         import hwInterface
         hwPlat = hwInterface.counterIface()
     
-    ctr = geigerInterface(args.mode, hwPlat, cps = args.cps, flags = args.flags, debug = args.debug, quiet = args.quiet, timeStr = args.time)
+    ctr = geigerInterface(args.mode, hwPlat, cps = args.cps, flags = args.flags, debug = args.debug, quiet = args.quiet, time = args.time)
     
     ctr.run()
