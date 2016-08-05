@@ -13,14 +13,14 @@ import traceback
 ############################
 
 class geigerInterface():
-    def __init__(self, mode, hwPlatform, cps = False, flags = False, debug = False, quiet = False, time = 0):
+    def __init__(self, hwPlatform, mode = "class", cps = False, flags = False, debug = False, quiet = False, time = 0):
         """
         Geiger counter interface class. Madatory arguments are mode and hwPlatform, which should be an instance or child object of counterIface.
         """
         
         # Constants and tunable parameters
-        self.c_ct_slow = 22            # Number of samples in slow mode.
-        self.c_ct_fast = 4             # Number of samples in fast mode.
+        self.__c_ct_slow = 22            # Number of samples in slow mode.
+        self.__c_ct_fast = 4             # Number of samples in fast mode.
         
         # Flags
         self.f_accum = 0x01            # Bit position of accumulator flags. 
@@ -44,94 +44,223 @@ class geigerInterface():
         self.__hw = hwPlatform
         
         # Set default flags.
-        self.flags = self.f_accum_accum | self.f_trend_unk
+        self.__flags = self.f_trend_unk
         
         # Hold samples.
-        self.samples = []
+        self.__samples = []
         
-        self.cpsOn = False # Show CPS?
-        self.flagsOn = False # Show flags?
-        self.averageOn = True # Show averages?
-        self.debugOn = False # Debug?
-        self.liveOutput = True # Do we dump data in real time?
-        self.scount = 0
-        self.runtime = 0 # How long have we been running?
-        self.accumCts = 0 # How many counts do we have?        
-        self.timed = False # Are we running in timed mode?
-        self.timeLimit = 0 # What is our time limit
+        # Set mode.
+        self.__mode = mode
+        
+        self.__cpsOn = False # Show CPS?
+        self.__flagsOn = False # Show flags?
+        self.__debugOn = False # Debug?
+        self.__liveOutput = True # Do we dump data in real time?
+        self.__runtime = 0 # How long have we been running?
+        self.__accumCts = 0 # How many counts do we have?        
+        self.__timed = False # Are we running in timed mode?
+        self.__timeLimit = 0 # What is our time limit
+        self.__textOut = True # By default we are quiet.
         
         # Printed timestamp format.
         self.__tsFormat = '%Y-%m-%d %H:%M:%S.%f UTC'
         
-        # Select sample count based on mode.
-        if mode == "fast":
-            # Fast mode
-            self.averageOn = True
-            self.scount = self.c_ct_fast
-            self.flags = self.flags | self.f_mode_fast
-            
-        elif mode == "slow":
-            # Slow mode.
-            self.averageOn = True
-            self.scount = self.c_ct_slow
-            self.flags = self.flags | self.f_mode_slow
-            
-        elif mode == "stream":
-            # Stream mode
-            self.averageOn = False
-            self.cpsOn = True
-            self.flags = self.flags | self.f_mode_stream
-        
-        elif mode == "roll":
-            # Rolling mode. Keeps adding counts until the program is killed.
-            self.averageOn = False
-            self.cpsOn = False
-            self.flags = self.flags | self.f_mode_roll
-            self.liveOutput = False
-            
-        else:
-            # This straight up shouldn't have happened. Crash and burn.
-            raise RuntimeError("Invalid mode. Should be a string containing one of the following: fast, slow, stream, roll")
+        # Set mdoe.
+        self.__mode = mode
         
         # If we have activated counts per second set the flag.
         if cps == True:
-            self.cpsOn = True
+            self.__cpsOn = True
         
         # Show flags?
         if flags == True:
-            self.flagsOn = True
+            self.__flagsOn = True
         
         # Should we debug?
         if debug == True:
             self.__hw.setDebug(True)
-            self.debugOn = True
+            self.__debugOn = True
         
         # Live output?
         if quiet == True:
-            self.liveOutput = False
+            self.__textOut = False
         
         # Timer?
         if time > 0:
-            self.timed = True
-            self.timeLimit = time
-
+            self.__timed = True
+            self.__timeLimit = time
+    
+    def __liveCountPrint(self, cps):
+        """
+        Print data from all 'live' modes that print data as it comes in. cps should be a float.
+        """
+        
+        try:
+            # If we're set up to print things besides debug statements in the first place...
+            if self.__textOut == True:
+            
+                # First we get CPM since we always use it.
+                cpm = cps * 60.0
+                
+                # Dump the things we should dump.
+                print("--")
+                
+                if self.__flagsOn == True:
+                    flagStr = self.parseFlags()
+                    print("Flags: %s (0x%x)" %(flagStr, self.__flags))
+                    
+                if self.__cpsOn == True:
+                    print("%s CPS" %round(cps, 3))
+                            
+                print("%s CPM" %round(cpm, 3))
+        
+        except:
+            raise
+        
+        return
+    
+    def __parseTimeArg(self, timeStr):
+        """
+        Parse timer arguments. If we just see a number let's assume seconds. If there is an 'm' after the argument assume minutes.
+        """
+        
+        # Number of seconds.
+        retVal = 0
+        
+        ### NOT YET IMPLEMENTED. NEEDS TO BE DONE!
+        
+        
+        return retVal
+    
+    def bufferAvg(self, thisReading, smplBuffSz):
+        """
+        Handle buffered averaging, where the buffer contains up to smplBuffSz samples, and the newest reading is thisReading. Returns the average of the buffer.
+        This method is used by both modeFast() and modeSlow() - the difference being different smplBuffSz values.
+        """
+        
+        # Default return value is zero.
+        retVal = 0
+        
+        
+        try:
+            # Make sure we have no more than the specified number of samples.
+            del self.__samples[(smplBuffSz - 1):]
+            
+            # Prepend this reading.
+            self.__samples[:0] = [thisReading]
+            
+            # Get the number of samples.
+            curCount = len(self.__samples)
+            
+            # Get our averages.
+            retVal = float(sum(self.__samples)) / float(curCount)
+            
+            # Do we have a full buffer?
+            if curCount == smplBuffSz:
+                # Set complete flag.
+                self.setFlag(self.f_accum, self.f_accum_complete)
+            
+            else:
+                # Set accumulator flag.
+                self.setFlag(self.f_accum, self.f_accum_accum)
+        except:
+            raise
+        
+        return retVal
+    
+    def modeFast(self, latestCount):
+        """
+        Fast mode handler. Stores up to 4 seconds worth of data in a buffer and averages those samples.
+        """
+        
+        try:
+            # Handle counts.
+            avg = self.bufferAvg(latestCount, self.__c_ct_fast)
+            
+            # Print the things.
+            self.__liveCountPrint(avg)
+            
+            # Store the things.
+            ### NOT YET IMPLEMENTED.
+        
+        except:
+            raise
+        
+        return
+    
+    def modeSlow(self, latestCount):
+        """
+        Slow mode handler. Stores up to 22 seconds worth of data in a buffer and averages those samples.
+        """
+        
+        try:
+            # Handle counts.
+            avg = self.bufferAvg(latestCount, self.__c_ct_fast)
+            
+            # Print the things.
+            self.__liveCountPrint(avg)
+            
+            # Store the things.
+            ### NOT YET IMPLEMENTED.
+        
+        except:
+            raise
+        
+        return
+    
+    def modeStream(self, latestCount):
+        """
+        Continuously print counts on the screen without averaging until the program is killed or runs out of time.
+        """
+        try:
+            # Print the things.
+            self.__liveCountPrint(latestCount)
+            
+            # Store the things.
+            ### NOT YET IMPLEMENTED.
+            
+        except:
+            raise
+        
+        return
+    
+    def modeRoll(self, latestCount):
+        """
+        Take samples continuously and keep running until the program is killed or runs out of time.
+        """
+        
+        try:
+            # Accumulate new sample data.
+            self.__accumCts += latestCount
+            
+            # Increment runtime counter.
+            self.__runtime += 1
+        
+        except:
+            raise
+        
+        return
 
     def setFlag(self, whichFlag, whichValue):
         """
         Set a given flag to a given value.
         """
         
-        if self.debugOn == True:
-            print("Flags in: %x" %self.flags)
+        try:
+            if self.__debugOn == True:
+                print("Flags in: %x" %self.__flags)
+            
+            # Get temproary flag value that blanks out the flag.
+            tFlag = (~whichFlag) & self.__flags
+            
+            # Set our flag to the given value.
+            self.__flags = tFlag | whichValue
+            
+            if self.__debugOn == True:
+                print("Flags out: %x" %self.__flags)
         
-        # Get temproary flag value that blanks out the flag.
-        tFlag = (~whichFlag) & self.flags
-        
-        # Set our flag to the given value.
-        self.flags = tFlag | whichValue
-        
-        if self.debugOn == True:
-            print("Flags out: %x" %self.flags)
+        except:
+            raise
         
         return
     
@@ -143,88 +272,108 @@ class geigerInterface():
         # Blank return value.
         retVal = ""
         
-        # Store flags as we parse them.
-        allFlags = []
+        try:
+            # Store flags as we parse them.
+            allFlags = []
+            
+            # Get the accumulator flag.
+            accFlag = self.__flags & self.f_accum
+            trendFlag = self.__flags & self.f_trend
+            modeFlag = self.__flags & self.f_mode
+            
+            # Complete set of readings?
+            if accFlag == self.f_accum_complete:
+                # Completed loading values into the accumulator.
+                allFlags.append('C')
+            elif accFlag == self.f_accum_accum:
+                # Still accumulating.
+                allFlags.append('A')
+            else:
+                # Bad value.
+                allFlags.append('!')
+            
+            # Trend?
+            if (trendFlag) == self.f_trend_stable:
+                # Readings stable.
+                allFlags.append('S')
+            elif (trendFlag) == self.f_trend_up:
+                # Still accumulating.
+                allFlags.append('U')
+            elif (trendFlag) == self.f_trend_dn:
+                # Still accumulating.
+                allFlags.append('D')
+            elif (trendFlag) == self.f_trend_unk:
+                # Still accumulating.
+                allFlags.append('?')
+            else:
+                # Bad value.
+                allFlags.append('!')
+            
+            # Mode?
+            if modeFlag == self.f_mode_fast:
+                # Fast
+                allFlags.append('F')
+            elif modeFlag == self.f_mode_slow:
+                # Slow
+                allFlags.append('S')
+            elif modeFlag == self.f_mode_stream:
+                # Stream
+                allFlasgs.append('T')
+            else:
+                # Bad value.
+                allFlags.append('!')
+            
+            # Build a nice string.
+            retVal = ''.join(allFlags)
+            
         
-        # Get the accumulator flag.
-        accFlag = self.flags & self.f_accum
-        trendFlag = self.flags & self.f_trend
-        modeFlag = self.flags & self.f_mode
-        
-        # Complete set of readings?
-        if accFlag == self.f_accum_complete:
-            # Completed loading values into the accumulator.
-            allFlags.append('C')
-        elif accFlag == self.f_accum_accum:
-            # Still accumulating.
-            allFlags.append('A')
-        else:
-            # Bad value.
-            allFlags.append('!')
-        n
-        # Trend?
-        if (trendFlag) == self.f_trend_stable:
-            # Readings stable.
-            allFlags.append('S')
-        elif (trendFlag) == self.f_trend_up:
-            # Still accumulating.
-            allFlags.append('U')
-        elif (trendFlag) == self.f_trend_dn:
-            # Still accumulating.
-            allFlags.append('D')
-        elif (trendFlag) == self.f_trend_unk:
-            # Still accumulating.
-            allFlags.append('?')
-        else:
-            # Bad value.
-            allFlags.append('!')
-        
-        # Mode?
-        if modeFlag == self.f_mode_fast:
-            # Fast
-            allFlags.append('F')
-        elif modeFlag == self.f_mode_slow:
-            # Slow
-            allFlags.append('S')
-        elif modeFlag == self.f_mode_stream:
-            # Stream
-            allFlasgs.append('T')
-        else:
-            # Bad value.
-            allFlags.append('!')
-        
-        # Build a nice string.
-        retVal = ''.join(allFlags)
+        except:
+            raise
         
         # Return value.
         return retVal
     
-    def parseTimeArg(self, timeStr):
-        """
-        Parse timer arguments. If we just see a number let's assume seconds. If there is an 'm' after the argument assume minutes.
-        """
+    def runCli(self):        
+        # Select sample count based on mode.
+        if self.__mode == "fast":
+            # Fast mode
+            self.__flags = self.__flags | self.f_mode_fast
+                    
+            # Run with fast mode callback.
+            self.run(self.modeFast)
+            
+        elif self.__mode == "slow":
+            # Slow mode.
+            self.__flags = self.__flags | self.f_mode_slow
+            
+            # Run with slow mode callback.
+            self.run(self.modeSlow)
+            
+        elif self.__mode == "stream":
+            # Stream mode
+            self.__flags = self.__flags | self.f_mode_stream
+            
+            # Run with stream mode callback.
+            self.run(self.modeStream)
         
-        # Number of seconds.
-        retVal = 0
+        elif self.__mode == "roll":
+            # Rolling mode. Keeps adding counts until the program is killed.
+            self.__flags = self.__flags | self.f_mode_roll
+            
+            # Run with roll mode callback.
+            self.run(self.modeRoll)
         
-        
-        
-        return retVal
+        else:
+            # This straight up shouldn't have happened. Crash and burn.
+            raise RuntimeError("Invalid mode specified. Should be a string containing one of the following for CLI mode: fast, slow, stream, roll")
     
-    def cli(self):
+    def run(self, callBack):
         """
-        Use CLI mode.
-        """
-        
-        return
-    
-    def run(self):
-        """
-        Run the counter.
+        Run the counter. Every time a sample is taken the callback method is called.
         """
         
         # Flag keeprunning as true.
-        keepRunning = True
+        self.__keepRunning = True
         
         try:
             # Set up our hardware interface.
@@ -233,24 +382,23 @@ class geigerInterface():
             # Get config.
             devConfig = self.__hw.getConfig()
             
-            print("Counter hardware platform is %s." %devConfig['desc'])
+            if self.__textOut == True:
+                print("Counter hardware platform is %s." %devConfig['desc'])
             
-            if self.debugOn == True:
+            if self.__debugOn == True:
                 print("Hardware config information:\n%s" %devConfig['config'])
             
             # When are we starting?
             self.__dtsStart = datetime.datetime.utcnow()
             
             # In case we bomb out make sure we have some sort of end DTS.
-            self.__dtsEnd = datetime.datetime.utcnow()
+            self.__dtsEnd = self.__dtsStart
             
-            # Print start time
-            print("Start time: %s" %self.__dtsStart.strftime(self.__tsFormat))
+            if self.__textOut == True:
+                # Print start time
+                print("Start time: %s" %self.__dtsStart.strftime(self.__tsFormat))
             
-            # Start hardware interface...
-            self.__hw.start()
-            
-            while keepRunning:
+            while self.__keepRunning:
                 try:
                     # Measure for 1 second
                     time.sleep(1)
@@ -258,67 +406,18 @@ class geigerInterface():
                     # Snag counter results.
                     thisReading = self.__hw.poll()
                     
-                    # Get mode flags.
-                    modeFlg = self.flags & self.f_mode
+                    # Execute our callback with the current reading.
+                    callBack(thisReading)
                     
-                    # If we're in rolling mode increment the runtime.
-                    if  modeFlg == self.f_mode_roll:
-                        # Roll accumulator.
-                        self.accumCts += thisReading
-                    
-                    # If we're in rolling or timer mode...
-                    if (modeFlg == self.f_mode_roll) or (self.timed == True):
-                        # Increment timer.
-                        self.runtime += 1
-                    
-                    # Are we averaging?
-                    if self.averageOn == True:
-                        # Make sure we have no more than the specified number of samples.
-                        del self.samples[(self.scount - 1):]
-                        
-                        # Prepend this reading.
-                        self.samples[:0] = [thisReading]
-                        
-                        # Get the number of samples.
-                        curCount = len(self.samples)
-                        
-                        # Get our averages.
-                        average = float(sum(self.samples)) / float(curCount)
-                        
-                        # CPM
-                        cpm = average * 60.0
-                        
-                        # If we are accumulating...
-                        if self.flags & self.f_accum == self.f_accum_accum:
-                            # If we have enough counts flag it.
-                            if curCount == self.scount:
-                                # We have enough readings.
-                                self.setFlag(self.f_accum, self.f_accum_complete)
-                
-                    # If we weant to output text live:   
-                    if self.liveOutput == True:
-                        # Dump the things we should dump.
-                        print("--")
-                        
-                        if self.flagsOn == True:
-                            flagStr = self.parseFlags()
-                            print("Flags: %s (0x%x)" %(flagStr, self.flags))
-                        
-                        if self.cpsOn == True:
-                            print("%s CPS" %thisReading)
-                        
-                        if self.averageOn == True:
-                            print("%s CPM" %round(cpm, 3))
-                
                     # If we're in timed mode make sure we haven't exceeded our runtime.
-                    if self.timed == True:
+                    if self.__timed == True:
                         # If we've hit our time limit this cycle stop the loop.
-                        if self.runtime == self.timeLimit:
-                            keepRunning = False
+                        if self.__runtime == self.__timeLimit:
+                            self.keepRunning = False
                 
                 except:
                     # Stop the loop.
-                    keepRunning = False
+                    self.__keepRunning = False
                     
                     # Pass the exception up the stack.
                     raise
@@ -329,45 +428,48 @@ class geigerInterface():
             # Stop the harware counter.
             self.__hw.stop()
         
-        except KeyboardInterrupt:
-            print("Caught keyboard interrupt. Quitting.")
-        
         except:
-            # If we somehow screw the pooch...
-            tb = traceback.format_exc()
-            print("Unhandled exception:\n%s" %tb)
+            raise
         
         finally:
-            # Print start time
-            print("End time: %s" %self.__dtsEnd.strftime(self.__tsFormat))
-            
-            # If we're in rolling mode make sure we give final stats after the program is killed.
-            if (self.flags & self.f_mode) == self.f_mode_roll:
-                # Make sure we don't divide by zero.
-                if self.runtime > 0:
-                    # Average counts over our run time...
-                    avgCts = float(self.accumCts) / float(self.runtime)
-                    
-                    # CPS -> CPM.
-                    finalCpm = avgCts * 60.0
-                    
-                    print("Total counts %s in %s sec." %(self.accumCts, self.runtime))
-                    print("Avg CPM over %s sec: %s" %(self.runtime, round(finalCpm, 3)))
-                    
-                    # If we want stats in counts per second as well...
-                    if self.cpsOn == True:
-                        print("Avg CPS over %s sec: %s" %(self.runtime, round(avgCts, 3)))
-                    
-                else:
-                    print("We ran for < 1 sec., not averaging data.")
-            
+            if self.__textOut == True:
+                print("Run statistics:")
+                
+                # Print start time
+                print("Start time: %s" %self.__dtsStart.strftime(self.__tsFormat))
+                
+                # Print end time
+                print("End time: %s" %self.__dtsEnd.strftime(self.__tsFormat))
+                
+                # Store the things.
+                ### NOT YET IMPLEMENTED.
+                
+                # If we're in rolling mode make sure we give final stats after the program is killed.
+                if (self.__flags & self.f_mode) == self.f_mode_roll:
+                    # Make sure we don't divide by zero.
+                    if self.__runtime > 0:
+                        # Average counts over our run time...
+                        avgCts = float(self.__accumCts) / float(self.__runtime)
+                        
+                        # CPS -> CPM.
+                        finalCpm = avgCts * 60.0
+                        
+                        print("Total counts %s in %s sec." %(self.__accumCts, self.__runtime))
+                        print("Avg CPM over %s sec: %s" %(self.__runtime, round(finalCpm, 3)))
+                        
+                        # If we want stats in counts per second as well...
+                        if self.__cpsOn == True:
+                            print("Avg CPS over %s sec: %s" %(self.__runtime, round(avgCts, 3)))
+                        
+                    else:
+                        raise runtimeError("We ran for < 1 sec., not averaging data.")
+                
             try:
                 # Clean up the hardware interface.
                 self.__hw.cleanup()
             
             except:
-                tb = traceback.format_exc()
-                print("Failed to close LabJack U3:\n%s" %tb)
+                raise
     
 
 #######################
@@ -389,7 +491,8 @@ if __name__ == "__main__":
     parser.add_argument('--quiet', action='store_true', help = 'Minimal command line output.')
     args = parser.parse_args()
     
-    print("Counter start, mode is %s" %args.mode)
+    if args.quiet == False:
+        print("Counter start, mode is %s" %args.mode)
     
     # Which hardware platform do we have?
     if args.hw == "u3":
@@ -407,6 +510,16 @@ if __name__ == "__main__":
         import rndHardware
         hwPlat = rndHardware.rndHardware()
     
-    ctr = geigerInterface(args.mode, hwPlat, cps = args.cps, flags = args.flags, debug = args.debug, quiet = args.quiet, time = args.time)
+    try:
+        # Set up geiger counter object.
+        ctr = geigerInterface(hwPlat, args.mode, cps = args.cps, flags = args.flags, debug = args.debug, quiet = args.quiet, time = args.time)
+        
+        # Run the geiger counter.
+        ctr.runCli()
     
-    ctr.run()
+    except KeyboardInterrupt:
+        print("Caught keyboard interrupt. Quitting.")
+    
+    except:
+        tb = traceback.format_exc()
+        print("Caught unhandled exception:\n%s" %tb)
