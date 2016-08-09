@@ -89,6 +89,10 @@ class geigerInterface():
         if time > 0:
             self.__timed = True
             self.__timeLimit = time
+        
+        # Turn hardware text on/off.
+        self.__hw.setTextOut(self.__textOut)
+    
     
     def __liveCountPrint(self, cps):
         """
@@ -105,10 +109,12 @@ class geigerInterface():
                 # Dump the things we should dump.
                 print("--")
                 
+                # If we want the flags dumped...
                 if self.__flagsOn == True:
                     flagStr = self.parseFlags()
                     print("Flags: %s (0x%x)" %(flagStr, self.__flags))
-                    
+                
+                # If we want CPS on...
                 if self.__cpsOn == True:
                     print("%s CPS" %round(cps, 3))
                             
@@ -118,6 +124,7 @@ class geigerInterface():
             raise
         
         return
+    
     
     def __parseTimeArg(self, timeStr):
         """
@@ -131,6 +138,7 @@ class geigerInterface():
         
         
         return retVal
+    
     
     def bufferAvg(self, thisReading, smplBuffSz):
         """
@@ -168,6 +176,7 @@ class geigerInterface():
         
         return retVal
     
+    
     def modeFast(self, latestCount):
         """
         Fast mode handler. Stores up to 4 seconds worth of data in a buffer and averages those samples.
@@ -187,6 +196,7 @@ class geigerInterface():
             raise
         
         return
+    
     
     def modeSlow(self, latestCount):
         """
@@ -208,6 +218,7 @@ class geigerInterface():
         
         return
     
+    
     def modeStream(self, latestCount):
         """
         Continuously print counts on the screen without averaging until the program is killed or runs out of time.
@@ -223,6 +234,7 @@ class geigerInterface():
             raise
         
         return
+    
     
     def modeRoll(self, latestCount):
         """
@@ -240,6 +252,7 @@ class geigerInterface():
             raise
         
         return
+
 
     def setFlag(self, whichFlag, whichValue):
         """
@@ -333,6 +346,7 @@ class geigerInterface():
         # Return value.
         return retVal
     
+    
     def runCli(self):        
         # Select sample count based on mode.
         if self.__mode == "fast":
@@ -366,6 +380,7 @@ class geigerInterface():
         else:
             # This straight up shouldn't have happened. Crash and burn.
             raise RuntimeError("Invalid mode specified. Should be a string containing one of the following for CLI mode: fast, slow, stream, roll")
+    
     
     def run(self, callBack):
         """

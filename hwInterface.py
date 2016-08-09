@@ -4,9 +4,9 @@ class counterIface(object):
 		Template class to communicate with physical counter hardware. Override methods that the hardware requires.
 		"""
 		
-		print("Counter hardware init...")
-		
+		# Debug and text output flags.
 		self._debug = False
+		self._textOut = False
 	
 	def setDebug(self, debugOn):
 		"""
@@ -23,6 +23,19 @@ class counterIface(object):
 		
 		return
 	
+	def setTextOut(self, textOut):
+		"""
+		Turn text output on or off.
+		"""
+		
+		# Set the flag.
+		if textOut == True:
+			self._textOut = True
+		else:
+			self._textOut = False
+		
+		return
+
 	def setup(self):
 		"""
 		Set up and configure counter hardware interface
