@@ -413,7 +413,7 @@ class geigerInterface():
                     if self.__timed == True:
                         # If we've hit our time limit this cycle stop the loop.
                         if self.__runtime == self.__timeLimit:
-                            self.keepRunning = False
+                            self.__keepRunning = False
                 
                 except:
                     # Stop the loop.
