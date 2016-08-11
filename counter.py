@@ -23,28 +23,29 @@ class geigerInterface():
         self.__c_ct_fast = 4             # Number of samples in fast mode.
         
         # Flags
-        self.f_accum = 0x01            # Bit position of accumulator flags. 
-        self.f_accum_accum = 0x00      # This flag means we're still accumulating data.
-        self.f_accum_complete = 0x01   # This flag means we have a full sample to average from.
+        self.f_accum          = 0x03   # Bit position of accumulator flags. 
+        self.f_accum_unk      = 0x00   # This flag means we don't have any accumulator info.
+        self.f_accum_accum    = 0x01   # This flag means we're still accumulating data.
+        self.f_accum_complete = 0x02   # This flag means we have a full sample to average from.
         
-        self.f_trend = 0x06            # Bit position of the trend flag.
-        self.f_trend_stable = 0x00     # Stable readings.
-        self.f_trend_up     = 0x02     # Readings increasing.
-        self.f_trend_dn     = 0x04     # Readings decreasing.
-        self.f_trend_unk    = 0x06     # Not sure.
+        self.f_trend          = 0x1c     # Bit position of the trend flag.
+        self.f_trend_unk      = 0x00     # Unknown trend.
+        self.f_trend_up       = 0x04     # Readings increasing.
+        self.f_trend_dn       = 0x08     # Readings decreasing.
+        self.f_trend_stable   = 0x10     # Readings stable
         
-        self.f_mode = 0x18             # Bit position of the mode flag.
-        self.f_mode_fast = 0x00        # Fast averaging mode.
-        self.f_mode_slow = 0x08        # Slow averaging mode.
-        self.f_mode_stream = 0x10      # Streaming mode.
-        self.f_mode_roll = 0x18        # Rolling mode.
+        self.f_mode           = 0xe0     # Bit position of the mode flag. This is large because we want to support more modes in the future.
+        self.f_mode_fast      = 0x00     # Fast averaging mode.
+        self.f_mode_slow      = 0x20     # Slow averaging mode.
+        self.f_mode_stream    = 0x40     # Streaming mode.
+        self.f_mode_roll      = 0x80     # Rolling mode.
         
         
         # Set up hardware.
         self.__hw = hwPlatform
         
-        # Set default flags.
-        self.__flags = self.f_trend_unk
+        # Set default flags. By default we're in stream mode unless the CLI tells us differently.
+        self.__flags = self.f_accum_unk | self.f_trend_unk | self.f_mode_stream
         
         # Hold samples.
         self.__samples = []
@@ -306,6 +307,9 @@ class geigerInterface():
             elif accFlag == self.f_accum_accum:
                 # Still accumulating.
                 allFlags.append('A')
+            elif accFlag == self.f_accum_unk:
+                # Unknown.
+                allFalgs.append('?')
             else:
                 # Bad value.
                 allFlags.append('!')
@@ -336,7 +340,10 @@ class geigerInterface():
                 allFlags.append('S')
             elif modeFlag == self.f_mode_stream:
                 # Stream
-                allFlasgs.append('T')
+                allFlasgs.append('E')
+            elif modeFlag == self.f_mode_roll:
+                # Roll
+                allFlags.append('R')
             else:
                 # Bad value.
                 allFlags.append('!')
@@ -356,28 +363,28 @@ class geigerInterface():
         # Select sample count based on mode.
         if self.__mode == "fast":
             # Fast mode
-            self.__flags = self.__flags | self.f_mode_fast
+            self.setFlag(self.f_mode, self.f_mode_fast)
                     
             # Run with fast mode callback.
             self.run(self.modeFast)
             
         elif self.__mode == "slow":
             # Slow mode.
-            self.__flags = self.__flags | self.f_mode_slow
+            self.setFlag(self.f_mode, self.f_mode_slow)
             
             # Run with slow mode callback.
             self.run(self.modeSlow)
             
         elif self.__mode == "stream":
             # Stream mode
-            self.__flags = self.__flags | self.f_mode_stream
+            self.setFlag(self.f_mode, self.f_mode_stream)
             
             # Run with stream mode callback.
             self.run(self.modeStream)
         
         elif self.__mode == "roll":
             # Rolling mode. Keeps adding counts until the program is killed.
-            self.__flags = self.__flags | self.f_mode_roll
+            self.setFlag(self.f_mode, self.f_mode_roll)
             
             # Run with roll mode callback.
             self.run(self.modeRoll)
