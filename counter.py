@@ -205,7 +205,7 @@ class geigerInterface():
         
         try:
             # Handle counts.
-            avg = self.bufferAvg(latestCount, self.__c_ct_fast)
+            avg = self.bufferAvg(latestCount, self.__c_ct_slow)
             
             # Print the things.
             self.__liveCountPrint(avg)
