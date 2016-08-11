@@ -94,18 +94,23 @@ class geigerInterface():
         self.__hw.setTextOut(self.__textOut)
     
     
-    def __liveCountPrint(self, cps):
+    def __liveCountPrint(self, cps, avg = False):
         """
-        Print data from all 'live' modes that print data as it comes in. cps should be a float.
+        Print data from all 'live' modes that print data as it comes in. cps should be a float. The optional avg is used if we have an average CPS such as in fast and slow mode.
         """
         
         try:
             # If we're set up to print things besides debug statements in the first place...
             if self.__textOut == True:
-            
-                # First we get CPM since we always use it.
-                cpm = cps * 60.0
                 
+                # If we don't have an average...
+                if avg == False:
+                    # First we get CPM since we always use it.
+                    cpm = cps * 60.0
+                else:
+                    # If we do have an average, use it instead so we always get good CPS data.
+                    cpm = avg * 60.0
+                    
                 # Dump the things we should dump.
                 print("--")
                 
@@ -117,7 +122,7 @@ class geigerInterface():
                 # If we want CPS on...
                 if self.__cpsOn == True:
                     print("%s CPS" %round(cps, 3))
-                            
+                
                 print("%s CPM" %round(cpm, 3))
         
         except:
@@ -184,10 +189,10 @@ class geigerInterface():
         
         try:
             # Handle counts.
-            avg = self.bufferAvg(latestCount, self.__c_ct_fast)
+            avgCt = self.bufferAvg(latestCount, self.__c_ct_fast)
             
             # Print the things.
-            self.__liveCountPrint(avg)
+            self.__liveCountPrint(latestCount, avg = avgCt)
             
             # Store the things.
             ### NOT YET IMPLEMENTED.
@@ -205,10 +210,10 @@ class geigerInterface():
         
         try:
             # Handle counts.
-            avg = self.bufferAvg(latestCount, self.__c_ct_slow)
+            avgCt = self.bufferAvg(latestCount, self.__c_ct_slow)
             
             # Print the things.
-            self.__liveCountPrint(avg)
+            self.__liveCountPrint(latestCount, avg = avgCt)
             
             # Store the things.
             ### NOT YET IMPLEMENTED.
