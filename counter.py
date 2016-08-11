@@ -95,7 +95,7 @@ class geigerInterface():
         self.__hw.setTextOut(self.__textOut)
     
     
-    def __liveCountPrint(self, cps, avg = False):
+    def __liveCountPrint(self, cps, avg = None):
         """
         Print data from all 'live' modes that print data as it comes in. cps should be a float. The optional avg is used if we have an average CPS such as in fast and slow mode.
         """
@@ -105,10 +105,15 @@ class geigerInterface():
             if self.__textOut == True:
                 
                 # If we don't have an average...
-                if avg == False:
+                if avg is None:
+                    # Average string is blank.
+                    avgStr = ""
+                    
                     # First we get CPM since we always use it.
                     cpm = cps * 60.0
                 else:
+                    avgStr = " [Avg]"
+                    
                     # If we do have an average, use it instead so we always get good CPS data.
                     cpm = avg * 60.0
                     
@@ -124,7 +129,7 @@ class geigerInterface():
                 if self.__cpsOn == True:
                     print("%s CPS" %round(cps, 3))
                 
-                print("%s CPM" %round(cpm, 3))
+                print("%s CPM%s" %(round(cpm, 3), avgStr))
         
         except:
             raise
@@ -309,7 +314,7 @@ class geigerInterface():
                 allFlags.append('A')
             elif accFlag == self.f_accum_unk:
                 # Unknown.
-                allFalgs.append('?')
+                allFlags.append('?')
             else:
                 # Bad value.
                 allFlags.append('!')
@@ -340,7 +345,7 @@ class geigerInterface():
                 allFlags.append('S')
             elif modeFlag == self.f_mode_stream:
                 # Stream
-                allFlasgs.append('E')
+                allFlags.append('E')
             elif modeFlag == self.f_mode_roll:
                 # Roll
                 allFlags.append('R')
