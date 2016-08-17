@@ -30,8 +30,22 @@ D13 -> 12 Data bus (MSB)
 */
 
 // Uncomment to debug.
-//#define debugOn
+#define debugOn
+
+// "Serial port" speed.
 #define serialSpeed 115200
+
+// Comment this out to disable i2c interface in slave mode.
+#define isI2CSlave
+
+// If we are going to be an I2C slave include the things we need to do so.
+#ifdef isI2CSlave
+  // Include I2C libraries.
+  #include <Wire.h>
+
+  // Set up I2C address.
+  #define i2cAddr 0x35
+#endif
 
 // Control pins.
 int galPin  = 2;
@@ -42,6 +56,9 @@ int cclrPin = 5;
 // Digital bus pin arragment.
 int digitalBusPin = 6; // Bus starts at D6
 int digitalBusLen = 8; // 8-bit bus.
+
+// Store counts per second.
+unsigned int currentCount = 0;
 
 // Clear the counter IC's buffer.
 void counterClear() {
@@ -87,7 +104,7 @@ unsigned int counterGetSample() {
   // Get the 8 bits containing LSB.
   digitalWrite(galPin, LOW);
   digitalWrite(gauPin, HIGH);
-  delay(1);
+  //delay(1);
   
   // Get the bits from the digital bus.
   lsb = readDigitalBus();
@@ -95,11 +112,11 @@ unsigned int counterGetSample() {
   // Get the 8 bits containing MSB.
   digitalWrite(galPin, HIGH);
   digitalWrite(gauPin, LOW);
-  delay(1);
+  //delay(1);
   
   // Get the bits from the digital bus.
   msb = readDigitalBus();
-
+  
   // Set IDGAF mode again.
   digitalWrite(galPin, HIGH);
   digitalWrite(gauPin, HIGH);
@@ -108,28 +125,47 @@ unsigned int counterGetSample() {
   retVal = (msb << 8) | lsb;
   
   #ifdef debugOn
-  Serial.print("LSB: 0x");
-  Serial.println(lsb, HEX);
-  Serial.print("MSB: 0x");
+  Serial.print("LSB:   0x");
+  Serial.println(lsb, HEX); 
+  Serial.print("MSB:   0x");
   Serial.println(msb, HEX);
-  Serial.print("Int: ");
-  Serial.println(retVal);
+  Serial.print("16BIT: 0x");
+  Serial.println(retVal, HEX);
   #endif
   
   return retVal;
 }
+
+#ifdef isI2CSlave
+// Send counts back.
+void i2cTxData() {
+  // Send MSB
+  Wire.write(currentCount >> 8);
+  // Send LSB
+  Wire.write(currentCount & 0xff);
+
+  return;
+}
+#endif
 
 // Set up the Arduino's pins and serial.
 void setup() {
   // Serial out.
   Serial.begin(serialSpeed);
   
+  #ifdef isI2CSlave
+  // Bring up I2C bus.
+  Wire.begin(i2cAddr);
+  // Set up request handler.
+  Wire.onRequest(i2cTxData);
+  #endif
+  
   // GAL pin
   pinMode(galPin, OUTPUT);
   digitalWrite(galPin, HIGH);
   
   // GAU pin
-  pinMode(galPin, OUTPUT);
+  pinMode(gauPin, OUTPUT);
   digitalWrite(gauPin, HIGH);
   
   // RCLK pin
@@ -148,9 +184,6 @@ void setup() {
 }
 
 void loop() {
-  // Set up counts variable.
-  unsigned int counts = 0;
-  
   // Clear the counter.
   counterClear();
   
@@ -160,15 +193,10 @@ void loop() {
   // Load counter data into registers.
   counterLoadSample();
   
-  // Read the registers.
-  counts = counterGetSample();
-  
-  // Get counts per minute.
-  long cpm = counts * 60;
-  
+  // Read the registers, update global counts.
+  currentCount = counterGetSample();
+    
   Serial.print("CPS: ");
-  Serial.println(counts);
-  Serial.print("CPM: ");
-  Serial.println(cpm);
+  Serial.println(currentCount);
   Serial.println("--");
 }
