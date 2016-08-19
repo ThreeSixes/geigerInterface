@@ -57,17 +57,6 @@ class arduI2cHardware(counterIface):
 		
 		if self._debug == True:
 			print("Set up Arduino counter hardware on I2C bus...")
-		
-		# If we didn't already assign the address and bus ID assign them now.
-		try:
-			# Set up I2C master.
-			self.__i2cMaster = qI2c.I2CMaster(self.__i2cBus)
-			
-			if self._debug == True:
-				print("I2C bus ID not specified. Defaulting to %s." %self.__i2cBus)
-		
-		except:
-			raise
 
 		try:
 			self.__myAddr
@@ -87,6 +76,15 @@ class arduI2cHardware(counterIface):
 		except NameError:
 			# Which bus is this on?
 			self.__i2cBus = 1
+			
+			if self._debug == True:
+				print("I2C bus ID not specified. Defaulting to %s." %self.__i2cBus)
+		except:
+			raise
+		
+		try:
+			# Set up I2C master.
+			self.__i2cMaster = qI2c.I2CMaster(self.__i2cBus)
 		
 		except:
 			raise
@@ -119,6 +117,7 @@ class arduI2cHardware(counterIface):
 		try:
 			# Get I2C transaction data.
 			counterReturn = self.__i2cMaster.transaction(self.__i2c.reading(self.__i2cAddr, 2))
+		
 		except:
 			raise
 		
