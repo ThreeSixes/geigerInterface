@@ -534,16 +534,16 @@ if __name__ == "__main__":
     
     elif args.hw == "arduser":
         # We have an Arduino attached via serial interface.
-        import arduSerHardware
-        hwPlat = arduSerHardware.arduSerHardware()
+        import arduHardware
+        hwPlat = arduHardware.arduSerHardware()
         
         # Set the serial port properties.
         hwPlat.setSerialProps('/dev/ttyACM0', baud = 115200)
     
     elif args.hw == "ardui2c":
         # We have an Arduino attached via I2C bus.
-        import arduI2cHardware
-        hwPlat = arduI2cHardware.arduI2cHardware()
+        import arduHardware
+        hwPlat = arduHardware.arduI2cHardware()
         
         # Set the I2C bus properties. Both of these are defaults. 
         hwPlat.setI2cProps(i2cBusID = 1, targetI2cAddr = 0x35)
