@@ -98,8 +98,10 @@ class arduI2cHardware(counterIface):
 		
 		retVal = {
 			"desc": "Arduino counter via I2C",
-			"i2cBusID": self.__i2cBus,
-			"i2cAddr": self.__i2cAddr
+			"config": {
+					"i2cBusID": self.__i2cBus,
+					"i2cAddr": self.__i2cAddr
+				}
 			}
 		
 		return retVal
