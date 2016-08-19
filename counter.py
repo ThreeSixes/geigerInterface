@@ -512,7 +512,7 @@ if __name__ == "__main__":
     import argparse
 
     # Set up command line interface.
-    parser = argparse.ArgumentParser(description = "Geiger counter interface", epilog = "Fast mode averages counts over a 4 second period, and slow mode averages counts over a 22 second period. This is modeled from the Ludlum model 3 geiger counter. It is intended that this program get support for storing data to files.  KNOWN ISSUES: the ardui2c hardware type has not yet been tested.")
+    parser = argparse.ArgumentParser(description = "Geiger counter interface", epilog = "Fast mode averages counts over a 4 second period, and slow mode averages counts over a 22 second period. This is modeled from the Ludlum model 3 geiger counter. It is intended that this program get support for storing data to files.  KNOWN ISSUES: The arduser hardware can have delays between readings and output as high as two seconds due to the way timing works. The ardui2c hardware type has not yet been tested.")
     parser.add_argument('--accumulate', action='store_true', help = 'Keep a sum of all detected counts.')
     parser.add_argument('--cps', action='store_true', help = 'Show live counts per second.')
     parser.add_argument('--hw', choices=['dummy', 'random', 'u3', 'arduser', 'ardui2c'], required = True, help = 'Set counter hardware platform. The choices are "u3" for a LabJack U3, "arduser" for an Arduino-based counter connected via serial port, "ardui2c" for an Arduino-based counter on an I2C bus, "dummy" which does nothing, and "random" which generates random numbers.')
