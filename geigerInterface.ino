@@ -30,7 +30,7 @@ D13 -> 12 Data bus (MSB)
 */
 
 // Uncomment to debug.
-#define debugOn
+//#define debugOn
 
 // "Serial port" speed.
 #define serialSpeed 115200
