@@ -7,13 +7,10 @@
 import datetime
 import time
 import traceback
-
-############################
-### Master counter class ###
-############################
+import datalayer
 
 class geigerInterface():
-    def __init__(self, hwPlatform, mode = "class", cps = False, flags = False, debug = False, quiet = False, time = 0):
+    def __init__(self, hwPlatform, mode = "class", cps = False, flags = False, debug = False, quiet = False, time = 0, stg = None):
         """
         Geiger counter interface class. Madatory arguments are mode and hwPlatform, which should be an instance or child object of counterIface.
         """
@@ -40,6 +37,8 @@ class geigerInterface():
         self.f_mode_stream    = 0x40     # Streaming mode.
         self.f_mode_roll      = 0x80     # Rolling mode.
         
+        # Set up storage:
+        self.__stg = stg
         
         # Set up hardware.
         self.__hw = hwPlatform
@@ -93,6 +92,10 @@ class geigerInterface():
         
         # Turn hardware text on/off.
         self.__hw.setTextOut(self.__textOut)
+        
+        # Placeholder
+        self.__dtsStart = datetime.datetime.utcnow()
+        self.__dtsEnd = datetime.datetime.utcnow()
     
     
     def __liveCountPrint(self, cps, avg = None):
@@ -200,8 +203,13 @@ class geigerInterface():
             # Print the things.
             self.__liveCountPrint(latestCount, avg = avgCt)
             
-            # Store the things.
-            ### NOT YET IMPLEMENTED.
+            # If we have a storage mode set up...
+            if self.__stg is not None:
+                # Store the things.
+                try:
+                    self.__stg.storeDatapoint([datetime.datetime.utcnow(), round(avgCt * 60.0, 3)])
+                except:
+                    print("Failed to store data point: %s" %traceback.format_exc())
         
         except:
             raise
@@ -221,8 +229,13 @@ class geigerInterface():
             # Print the things.
             self.__liveCountPrint(latestCount, avg = avgCt)
             
-            # Store the things.
-            ### NOT YET IMPLEMENTED.
+            # If we have a storage mode set up...
+            if self.__stg is not None:
+                # Store the things.
+                try:
+                    self.__stg.storeDatapoint([datetime.datetime.utcnow(), round(avgCt * 60.0, 3)])
+                except:
+                    print("Failed to store data point: %s" %traceback.format_exc())
         
         except:
             raise
@@ -238,9 +251,14 @@ class geigerInterface():
             # Print the things.
             self.__liveCountPrint(latestCount)
             
-            # Store the things.
-            ### NOT YET IMPLEMENTED.
-            
+            # If we have a storage mode set up...
+            if self.__stg is not None:
+                # Store the things.
+                try:
+                    self.__stg.storeDatapoint([datetime.datetime.utcnow(), latestCount])
+                except:
+                    print("Failed to store data point: %s" %traceback.format_exc())
+        
         except:
             raise
         
@@ -486,6 +504,14 @@ class geigerInterface():
                         # CPS -> CPM.
                         finalCpm = avgCts * 60.0
                         
+                        # If we have a storage mode set up...
+                        if self.__stg is not None:
+                            # Store the things.
+                            try:
+                                self.__stg.storeDatapoint([datetime.datetime.utcnow(), finalCpm])
+                            except:
+                                print("Failed to store data point: %s" %traceback.format_exc())
+                        
                         print("Total counts %s in %s sec." %(self.__accumCts, self.__runtime))
                         print("Avg CPM over %s sec: %s" %(self.__runtime, round(finalCpm, 3)))
                         
@@ -493,8 +519,8 @@ class geigerInterface():
                         if self.__cpsOn == True:
                             print("Avg CPS over %s sec: %s" %(self.__runtime, round(avgCts, 3)))
                         
-                    else:
-                        raise runtimeError("We ran for < 1 sec., not averaging data.")
+                    #else:
+                        #raise RuntimeError("We ran for < 1 sec., not averaging data.")
                 
             try:
                 # Clean up the hardware interface.
@@ -520,6 +546,8 @@ if __name__ == "__main__":
     parser.add_argument('--flags', action='store_true', help = 'Display flags.')
     parser.add_argument('--mode', choices=['fast', 'slow', 'stream', 'roll'], required = True, help = 'Set mode option. Fast averages samples over 4 sec., Slow averages samples over 22 sec. Stream mode implies --cps and does not average. Roll mode keeps adding an average as long as it runs, and dumps stats at the end. Roll mode also implies --quiet.')
     parser.add_argument('--time', type = int, help = 'Time in seconds to run.')
+    parser.add_argument('--store', choices=['none', 'csv'], default='none', required = False, help = 'Store output data in a given format.')
+    parser.add_argument('--out', type = str, required = False, default=None, help = 'Output file name. Only has an effect when "--store csv" is set, and will clobber the existing file if it exists.')
     parser.add_argument('--quiet', action='store_true', help = 'Minimal command line output.')
     args = parser.parse_args()
     
@@ -558,9 +586,32 @@ if __name__ == "__main__":
         import rndHardware
         hwPlat = rndHardware.rndHardware()
     
+    if args.store == "csv":
+        # We want to store our results ina CSV file.
+        try:
+            # Import and create data layer.
+            import datalayer
+            stg = datalayer.datalayer('csv', None)
+        
+        except:
+            print("Failed to create data layer: %s" %traceback.format_exc())
+        
+        # Did we specify an output file name?
+        if args.out != None:
+            try:
+                # Set data layer storage properties.
+                stg.setStorageProps({'fileName': args.out})
+            
+            except:
+                print("Failed to set file name: %s" %traceback.format_exc())
+    
+    else:
+        # We're not doing storage so flag it.
+        stg = None
+    
     try:
         # Set up geiger counter object.
-        ctr = geigerInterface(hwPlat, args.mode, cps = args.cps, flags = args.flags, debug = args.debug, quiet = args.quiet, time = args.time)
+        ctr = geigerInterface(hwPlat, args.mode, cps = args.cps, flags = args.flags, debug = args.debug, quiet = args.quiet, time = args.time, stg = stg)
         
         # Run the geiger counter.
         ctr.runCli()
