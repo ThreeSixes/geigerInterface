@@ -221,6 +221,12 @@ class arduI2cHardware(counterIface):
 		Set up and configure counter hardware interface
 		"""
 		
+		# Use threading.
+		import threading
+		
+		# Keep track of the last CPS reading.
+		self.__lastReading = 0
+		
 		if self._debug == True:
 			print("Set up Arduino counter hardware on I2C bus...")
 		
@@ -277,7 +283,16 @@ class arduI2cHardware(counterIface):
 			}
 		
 		return retVal
-
+	
+	def __pollwerThread(self):
+		"""
+		Continuously scan for new CPS data.
+		"""
+		
+		
+		
+		return
+	
 	def poll(self):
 		"""
 		Poll the counter.
