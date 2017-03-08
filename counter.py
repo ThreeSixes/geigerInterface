@@ -34,8 +34,8 @@ class geigerInterface():
         self.f_mode           = 0xe0     # Bit position of the mode flag. This is large because we want to support more modes in the future.
         self.f_mode_fast      = 0x00     # Fast averaging mode.
         self.f_mode_slow      = 0x20     # Slow averaging mode.
-        self.f_mode_stream    = 0x40     # Streaming mode.
-        self.f_mode_roll      = 0x80     # Rolling mode.
+        self.f_mode_counter   = 0x40     # Counter mode.
+        self.f_mode_scaler    = 0x80     # Scaler mode.
         
         # Set up storage:
         self.__stg = stg
@@ -44,7 +44,7 @@ class geigerInterface():
         self.__hw = hwPlatform
         
         # Set default flags. By default we're in stream mode unless the CLI tells us differently.
-        self.__flags = self.f_accum_unk | self.f_trend_unk | self.f_mode_stream
+        self.__flags = self.f_accum_unk | self.f_trend_unk | self.f_mode_counter
         
         # Hold samples.
         self.__samples = []
@@ -243,7 +243,7 @@ class geigerInterface():
         return
     
     
-    def modeStream(self, latestCount):
+    def modeCounter(self, latestCount):
         """
         Continuously print counts on the screen without averaging until the program is killed or runs out of time.
         """
@@ -265,7 +265,7 @@ class geigerInterface():
         return
     
     
-    def modeRoll(self, latestCount):
+    def modeScaler(self, latestCount):
         """
         Take samples continuously and keep running until the program is killed or runs out of time.
         """
@@ -361,12 +361,12 @@ class geigerInterface():
             elif modeFlag == self.f_mode_slow:
                 # Slow
                 allFlags.append('S')
-            elif modeFlag == self.f_mode_stream:
+            elif modeFlag == self.f_mode_counter:
                 # Stream
-                allFlags.append('E')
-            elif modeFlag == self.f_mode_roll:
+                allFlags.append('C')
+            elif modeFlag == self.f_mode_scaler:
                 # Roll
-                allFlags.append('R')
+                allFlags.append('L')
             else:
                 # Bad value.
                 allFlags.append('!')
@@ -398,19 +398,19 @@ class geigerInterface():
             # Run with slow mode callback.
             self.run(self.modeSlow)
             
-        elif self.__mode == "stream":
-            # Stream mode
-            self.setFlag(self.f_mode, self.f_mode_stream)
+        elif self.__mode == "counter":
+            # Counter mode
+            self.setFlag(self.f_mode, self.f_mode_counter)
             
-            # Run with stream mode callback.
-            self.run(self.modeStream)
+            # Run with counter mode callback.
+            self.run(self.modeCounter)
         
-        elif self.__mode == "roll":
-            # Rolling mode. Keeps adding counts until the program is killed.
-            self.setFlag(self.f_mode, self.f_mode_roll)
+        elif self.__mode == "scaler":
+            # Scaler mode. Keeps adding counts until the program is killed.
+            self.setFlag(self.f_mode, self.f_mode_scaler)
             
-            # Run with roll mode callback.
-            self.run(self.modeRoll)
+            # Run with scaler mode callback.
+            self.run(self.modeScaler)
         
         else:
             # This straight up shouldn't have happened. Crash and burn.
@@ -495,7 +495,7 @@ class geigerInterface():
                 ### NOT YET IMPLEMENTED.
                 
                 # If we're in rolling mode make sure we give final stats after the program is killed.
-                if (self.__flags & self.f_mode) == self.f_mode_roll:
+                if (self.__flags & self.f_mode) == self.f_mode_scaler:
                     # Make sure we don't divide by zero.
                     if self.__runtime > 0:
                         # Average counts over our run time...
@@ -544,7 +544,7 @@ if __name__ == "__main__":
     parser.add_argument('--hw', choices=['dummy', 'random', 'u3', 'arduser', 'ardui2c'], required = True, help = 'Set counter hardware platform. The choices are "u3" for a LabJack U3, "arduser" for an Arduino-based counter connected via serial port, "ardui2c" for an Arduino-based counter on an I2C bus, "dummy" which does nothing, and "random" which generates random numbers.')
     parser.add_argument('--debug', action='store_true', help = 'Debug')
     parser.add_argument('--flags', action='store_true', help = 'Display flags.')
-    parser.add_argument('--mode', choices=['fast', 'slow', 'stream', 'roll'], required = True, help = 'Set mode option. Fast averages samples over 4 sec., Slow averages samples over 22 sec. Stream mode implies --cps and does not average. Roll mode keeps adding an average as long as it runs, and dumps stats at the end. Roll mode also implies --quiet.')
+    parser.add_argument('--mode', choices=['fast', 'slow', 'counter', 'scaler'], required = True, help = 'Set mode option. Fast averages samples over 4 sec., Slow averages samples over 22 sec. Counter mode implies --cps and does not average. Scaler mode keeps adding an average as long as it runs, and dumps stats at the end. Scaler mode also implies --quiet.')
     parser.add_argument('--time', type = int, help = 'Time in seconds to run.')
     parser.add_argument('--store', choices=['none', 'csv'], default='none', required = False, help = 'Store output data in a given format.')
     parser.add_argument('--out', type = str, required = False, default=None, help = 'Output file name. Only has an effect when "--store csv" is set, and will clobber the existing file if it exists.')
@@ -552,7 +552,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.quiet == False:
-        print("Counter start, mode is %s" %args.mode)
+        print("Measurement starting, mode is %s" %args.mode)
     
     # Which hardware platform do we have?
     if args.hw == "u3":
